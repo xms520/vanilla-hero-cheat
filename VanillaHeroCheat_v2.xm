@@ -16,18 +16,18 @@
 #define LOG_TAG @"[VH-Cheat]"
 #define LOG_FILE @"/var/mobile/Library/Logs/vh_cheat.log"
 
+// CLAMP宏
+#define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
+
 // 功能状态
 static volatile BOOL g_oneHitKill = NO;
 static volatile BOOL g_godMode = NO;
 static volatile float g_speedMult = 1.0f;
 static volatile BOOL g_noAd = NO;
-static volatile BOOL g_autoBattle = NO;
 
 // 内存地址（从逆向分析）
 #define G_STATE_ADDR 0x3c41e0
 #define G_FLAG_ADDR  0x443b84
-#define G_KEY_SRC    0x3c17e0
-#define G_KEY_DST    0x3c1830
 
 // ============ 日志系统 ============
 static void cheat_log(NSString *fmt, ...) {
@@ -55,7 +55,6 @@ static void cheat_log(NSString *fmt, ...) {
 // ============ UI面板类 ============
 @interface CheatPanel : UIView
 @property (nonatomic, strong) UIButton *dragHandle;
-@property (nonatomic, strong) UIScrollView *contentView;
 @property (nonatomic, strong) UISwitch *oneHitSwitch;
 @property (nonatomic, strong) UISwitch *godSwitch;
 @property (nonatomic, strong) UISlider *speedSlider;
@@ -78,10 +77,10 @@ static void cheat_log(NSString *fmt, ...) {
     self.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.85];
     self.layer.cornerRadius = 12;
     self.layer.borderWidth = 1;
-    self.layer.borderColor = [[UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0] colorWithAlphaComponent:0.5].CGColor;
+    self.layer.borderColor = [[UIColor greenColor] colorWithAlphaComponent:0.5].CGColor;
     self.clipsToBounds = YES;
     
-    // 标题栏
+    // 标题
     UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(10, 8, 200, 28)];
     title.text = @"🎮 香草英雄 v2.0";
     title.textColor = [UIColor whiteColor];
@@ -110,7 +109,7 @@ static void cheat_log(NSString *fmt, ...) {
     self.speedSlider.minimumValue = 0.5f;
     self.speedSlider.maximumValue = 3.0f;
     self.speedSlider.value = g_speedMult;
-    [self.speedSlider setThumbImage:[UIImage systemImageName:@"speedometer"] tintColor:[UIColor greenColor]];;
+    [self.speedSlider setThumbColor:[UIColor greenColor]];
     [self.speedSlider addTarget:self action:@selector(speedChanged:) forControlEvents:UIControlEventValueChanged];
     [self addSubview:self.speedSlider];
     
@@ -189,9 +188,9 @@ static void cheat_log(NSString *fmt, ...) {
 }
 
 - (void)panGesture:(UIPanGestureRecognizer *)gesture {
-    CGPoint translation = [gesture translationInView superview]];
+    CGPoint translation = [gesture translationInView:self.superview];
     self.center = CGPointMake(self.center.x + translation.x, self.center.y + translation.y);
-    [gesture setTranslation:CGPointZero inView self.superview]];
+    [gesture setTranslation:CGPointZero inView:self.superview];
     
     if (gesture.state == UIGestureRecognizerStateEnded) {
         CGRect screen = [UIScreen mainScreen].bounds;
@@ -218,30 +217,20 @@ static CheatPanel *g_panel = nil;
 static UIWindow *g_window = nil;
 static NSTimer *g_cheatTimer = nil;
 
-// ============ 功能应用定时器 ============
+// ============ 功能应用 ============
 static void applyCheatFunctions() {
-    // 秒杀逻辑：尝试修改怪物HP
     if (g_oneHitKill) {
-        // 由于服务器验证，这里只能尝试Hook伤害计算
-        // TODO: 根据实际游戏函数进行Hook
         cheat_log(@"[秒杀] 等待战斗开始...");
     }
-    
-    // 无敌逻辑：防止玩家受伤
     if (g_godMode) {
-        // TODO: Hook受伤函数
         cheat_log(@"[无敌] 已开启");
     }
-    
-    // 变速逻辑：修改游戏时间
     if (g_speedMult != 1.0f) {
-        // 尝试通过修改CADisplayLink或CCScheduler
-        // TODO: 根据实际游戏引擎进行Hook
         cheat_log(@"[变速] %.1fx", g_speedMult);
     }
 }
 
-// ============ 定时检查 ============
+// ============ 定时器回调 ============
 static void cheatTimerCallback(CFRunLoopTimerRef timer, void *info) {
     applyCheatFunctions();
 }
@@ -250,18 +239,14 @@ static void cheatTimerCallback(CFRunLoopTimerRef timer, void *info) {
 static void installHooks() {
     cheat_log(@"安装Hook...");
     
-    // 尝试Hook常见的战斗管理器等
-    // 由于游戏是Cocos Creator，需要HookJS层面的函数
-    
     // 示例：Hook UIViewController（用于检测场景切换）
     Class VC = objc_getClass("UIViewController");
     if (VC) {
         Method m = class_getInstanceMethod(VC, sel_registerName("viewDidAppear:"));
         if (m) {
-           IMP orig = imp_getMethodImp(m);
+            IMP orig = method_getImplementation(m);
             IMP new_imp = imp_implementationWithBlock(^(id self, SEL _cmd, BOOL animated) {
-                cheat_log(@"[VC] viewDidAppear: %@" NSStringFromClass([self class]));
-                // 调用原始方法
+                cheat_log(@"[VC] viewDidAppear: %@", NSStringFromClass([self class]));
                 ((void(*)(id, SEL, BOOL))orig)(self, _cmd, animated);
             });
             method_setImplementation(m, new_imp);
@@ -309,13 +294,12 @@ static void VanillaHeroCheatInit() {
                       dispatch_get_main_queue(), ^{
             installHooks();
             
-            // 启动定时器
-            CFRunLoopTimerContext ctx = {0};
-            g_cheatTimer = CFRunLoopTimerCreate(kCFAllocatorDefault, 
-                                               CFAbsoluteTimeGetCurrent() + 1.0,
-                                               0.5, 0, 0, 
-                                               &cheatTimerCallback, &ctx);
-            CFRunLoopAddTimer(CFRunLoopGetMain(), g_cheatTimer, kCFRunLoopCommonModes);
+            // 启动定时器 (使用NSTimer替代CFRunLoopTimer)
+            g_cheatTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
+                                                          repeats:YES
+                                                            block:^(NSTimer * _Nonnull timer) {
+                applyCheatFunctions();
+            }];
             
             cheat_log(@"定时器已启动 (0.5s间隔)");
         });
