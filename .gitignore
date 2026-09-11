@@ -1,0 +1,26 @@
+# Byte-Code Compiled Objects
+*.bo
+# TeXsis-generated output
+*.tmp
+# Theos packages
+*.deb
+*.ipa
+*.plist
+*.signature
+# Theos build directories
+.build/
+theos/
+objects/
+packages/
+# Xcode
+*.dSYM/
+*.xcconfig
+project.xcworkspace/
+# macOS
+.DS_Store
+# Logs
+*.log
+# Temp files
+*.tmp
+*.swp
+*~
