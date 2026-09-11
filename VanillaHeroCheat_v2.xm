@@ -32,7 +32,7 @@ static void cheat_log(NSString *fmt, ...) {
     if (!fh) fh = [NSFileHandle fileHandleForWritingAtPath:LOG_FILE];
     if (fh) {
         [fh seekToEndOfFile];
-        [fh writeData:[[[NSString stringWithFormat:@"[%@] %@\n", [[NSDate date] description], msg] dataUsingEncoding:NSUTF8StringEncoding]];
+        [fh writeData:[NSString stringWithFormat:@"[%@] %@\n", [[NSDate date] description], msg] dataUsingEncoding:NSUTF8StringEncoding]];
         [fh closeFile];
     }
 }
