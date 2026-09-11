@@ -15,7 +15,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Build dylib with xcrun
+    - name: Build dylib
       run: |
         SDK=$(xcrun --sdk iphoneos --show-sdk-path)
         CLANG=$(xcrun --find clang)
@@ -24,12 +24,14 @@ jobs:
         echo "SDK: $SDK"
         echo "Clang: $CLANG"
         
+        # 使用Objective-C++编译（支持.xm文件和C++代码）
         $CLANG \
           -arch arm64 \
           -isysroot "$SDK" \
           -miphoneos-version-min=14.0 \
           -fobjc-arc \
           -fobjc-abi-version=2 \
+          -x objective-c++ \
           -dynamiclib \
           -framework Foundation \
           -framework UIKit \
@@ -48,18 +50,3 @@ jobs:
         name: VanillaHeroCheat_v${{ github.event.inputs.version }}
         path: VanillaHeroCheat.dylib
         if-no-files-found: error
-        
-    - name: Deploy instructions
-      run: |
-        echo "=========================================="
-        echo "Build Complete!"
-        echo "=========================================="
-        echo ""
-        echo "Download the artifact from Actions tab:"
-        echo "1. Go to GitHub repo -> Actions"
-        echo "2. Click on the latest workflow run"
-        echo "3. Download 'VanillaHeroCheat_v${{ github.event.inputs.version }}' artifact"
-        echo ""
-        echo "Deploy to device:"
-        echo "  scp VanillaHeroCheat.dylib root@DEVICE:/Library/MobileSubstrate/DynamicLibraries/"
-        echo "  ssh root@DEVICE 'restart SpringBoard'"
