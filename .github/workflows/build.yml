@@ -1,0 +1,84 @@
+name: VanillaHeroCheat Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号'
+        required: true
+        default: '2.0'
+      sdk:
+        description: 'iOS SDK版本'
+        required: false
+        default: '16.0'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Theos
+      run: |
+        git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        sudo $HOME/theos/bin/install-sdk ${{ github.event.inputs.sdk }}
+        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+        
+    - name: Build dylib with xcrun
+      run: |
+        SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+        CLANG=$(xcrun --find clang)
+        
+        echo "=== Building VanillaHeroCheat v${{ github.event.inputs.version }} ==="
+        echo "SDK: $SDK"
+        echo "Clang: $CLANG"
+        
+        $CLANG \
+          -arch arm64 \
+          -isysroot "$SDK" \
+          -miphoneos-version-min=14.0 \
+          -fobjc-arc \
+          -fobjc-abi-version=2 \
+          -dynamiclib \
+          -framework Foundation \
+          -framework UIKit \
+          -framework CoreGraphics \
+          -framework QuartzCore \
+          -o VanillaHeroCheat.dylib \
+          VanillaHeroCheat_v2.xm
+        
+        echo "=== Build Complete ==="
+        ls -lh VanillaHeroCheat.dylib
+        file VanillaHeroCheat.dylib
+        
+    - name: Sign with ldid (optional)
+      run: |
+        if command -v ldid &> /dev/null; then
+          ldid -S VanillaHeroCheat.dylib
+          echo "Signed with ldid"
+        else
+          echo "ldid not found, skipping signature"
+        fi
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VanillaHeroCheat_v${{ github.event.inputs.version }}
+        path: VanillaHeroCheat.dylib
+        if-no-files-found: error
+        
+    - name: Download instructions
+      run: |
+        echo "=========================================="
+        echo "Build Complete!"
+        echo "=========================================="
+        echo ""
+        echo "Download the artifact from Actions tab:"
+        echo "1. Go to GitHub repo -> Actions"
+        echo "2. Click on the latest workflow run"
+        echo "3. Download 'VanillaHeroCheat_vX.X' artifact"
+        echo ""
+        echo "Deploy to device:"
+        echo "  scp VanillaHeroCheat.dylib root@DEVICE:/Library/MobileSubstrate/DynamicLibraries/"
+        echo "  ssh root@DEVICE 'restart SpringBoard'"

@@ -1,0 +1,6 @@
+Locale = en_US
+Build = Debug
+Arch = arm64
+Package = com.xms520.vanillaherowcheat
+Type = Tool
+CodeSign Identity = iPhone Developer
